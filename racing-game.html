@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Racing Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+
+        #gameCanvas {
+            border: 2px solid #fff;
+            background: #333;
+        }
+
+        #gameContainer {
+            position: relative;
+            display: flex;
+            gap: 10px;
+        }
+
+        #gameInfo {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 18px;
+        }
+
+        #instructions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        <canvas id="gameCanvas2" width="400" height="600"></canvas>
+    </div>
+    <div id="gameInfo" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">
+        <div style="color: #44f;">Player 1 (Arrow Keys)</div>
+        <div>Speed: <span id="speed">0</span></div>
+        <div>Score: <span id="score">0</span></div>
+        <div id="boostIndicator" style="display: none; color: #ff0; font-weight: bold;">BOOST!</div>
+    </div>
+    <div id="gameInfo2" style="position: absolute; top: 10px; left: 420px; color: white; font-size: 16px;">
+        <div style="color: #f44;">Player 2 (WASD)</div>
+        <div>Speed: <span id="speed2">0</span></div>
+        <div>Score: <span id="score2">0</span></div>
+        <div id="boostIndicator2" style="display: none; color: #ff0; font-weight: bold;">BOOST!</div>
+    </div>
+    <div id="instructions">
+        <div><strong>Player 1:</strong> ARROW KEYS</div>
+        <div><strong>Player 2:</strong> WASD</div>
+        <div>Accelerate: UP/W</div>
+        <div>Brake: DOWN/S</div>
+        <div>Turn: LEFT,RIGHT/A,D</div>
+        <div>Drive through yellow boost pads!</div>
+    </div>
+
+    <script>
+        const canvas1 = document.getElementById('gameCanvas');
+        const ctx1 = canvas1.getContext('2d');
+        const canvas2 = document.getElementById('gameCanvas2');
+        const ctx2 = canvas2.getContext('2d');
+        const canvasWidth = 400;
+        const canvasHeight = 600;
+        const speedDisplay = document.getElementById('speed');
+        const scoreDisplay = document.getElementById('score');
+        const speedDisplay2 = document.getElementById('speed2');
+        const scoreDisplay2 = document.getElementById('score2');
+        const streak1Display = document.getElementById('streak1');
+        const streak2Display = document.getElementById('streak2');
+        const multiplier1Display = document.getElementById('multiplier1');
+        const multiplier2Display = document.getElementById('multiplier2');
+
+        // Game state
+        const game = {
+            player1: {
+                x: canvasWidth / 2,
+                y: canvasHeight - 100,
+                width: 30,
+                height: 60,
+                speed: 0,
+                maxSpeed: 8,
+                acceleration: 0.3,
+                friction: 0.95,
+                turnSpeed: 0,
+                maxTurnSpeed: 4,
+                angle: 0,
+                velocityX: 0,
+                velocityY: 0,
+                boosting: false,
+                boostTime: 0,
+                score: 0,
+                streak: 0,
+                multiplier: 1,
+                perfectCount: 0,
+                lastObstacleTime: 0,
+                comboTimer: 0,
+                nearMissCount: 0
+            },
+            player2: {
+                x: canvasWidth / 2,
+                y: canvasHeight - 100,
+                width: 30,
+                height: 60,
+                speed: 0,
+                maxSpeed: 8,
+                acceleration: 0.3,
+                friction: 0.95,
+                turnSpeed: 0,
+                maxTurnSpeed: 4,
+                angle: 0,
+                velocityX: 0,
+                velocityY: 0,
+                boosting: false,
+                boostTime: 0,
+                score: 0,
+                streak: 0,
+                multiplier: 1,
+                perfectCount: 0,
+                lastObstacleTime: 0,
+                comboTimer: 0,
+                nearMissCount: 0
+            },
+            obstacles: [],
+            boostPads: [],
+            scorePopups: [],
+            roadOffset: 0,
+            keys: {
+                up: false,
+                down: false,
+                left: false,
+                right: false,
+                w: false,
+                s: false,
+                a: false,
+                d: false
+            }
+        };
+
+        // Input handling
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                // Player 1 (Arrow Keys)
+                case 'ArrowUp': game.keys.up = true; break;
+                case 'ArrowDown': game.keys.down = true; break;
+                case 'ArrowLeft': game.keys.left = true; break;
+                case 'ArrowRight': game.keys.right = true; break;
+                // Player 2 (WASD)
+                case 'KeyW': game.keys.w = true; break;
+                case 'KeyS': game.keys.s = true; break;
+                case 'KeyA': game.keys.a = true; break;
+                case 'KeyD': game.keys.d = true; break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch(e.code) {
+                // Player 1 (Arrow Keys)
+                case 'ArrowUp': game.keys.up = false; break;
+                case 'ArrowDown': game.keys.down = false; break;
+                case 'ArrowLeft': game.keys.left = false; break;
+                case 'ArrowRight': game.keys.right = false; break;
+                // Player 2 (WASD)
+                case 'KeyW': game.keys.w = false; break;
+                case 'KeyS': game.keys.s = false; break;
+                case 'KeyA': game.keys.a = false; break;
+                case 'KeyD': game.keys.d = false; break;
+            }
+        });
+
+        // Create obstacles for each player
+        function createObstacle() {
+            // Create obstacle for player 1
+            const obstacle1 = {
+                x: Math.random() * (canvasWidth - 100) + 50,
+                y: -50,
+                width: 30,
+                height: 60,
+                speed: 2 + Math.random() * 3,
+                player: 1
+            };
+            // Create obstacle for player 2
+            const obstacle2 = {
+                x: Math.random() * (canvasWidth - 100) + 50,
+                y: -50,
+                width: 30,
+                height: 60,
+                speed: 2 + Math.random() * 3,
+                player: 2
+            };
+            game.obstacles.push(obstacle1, obstacle2);
+        }
+
+        // Create boost pads for each player
+        function createBoostPad() {
+            // Create boost pad for player 1
+            const boostPad1 = {
+                x: Math.random() * (canvasWidth - 200) + 150,
+                y: -80,
+                width: 60,
+                height: 30,
+                speed: 2,
+                used: false,
+                player: 1
+            };
+            // Create boost pad for player 2
+            const boostPad2 = {
+                x: Math.random() * (canvasWidth - 200) + 150,
+                y: -80,
+                width: 60,
+                height: 30,
+                speed: 2,
+                used: false,
+                player: 2
+            };
+            game.boostPads.push(boostPad1, boostPad2);
+        }
+
+        // Create floating score popup
+        function createScorePopup(x, y, points, type, playerNum) {
+            const popup = {
+                x: x,
+                y: y,
+                points: points,
+                type: type, // 'collision', 'nearMiss', 'boost', 'survival', 'perfect'
+                playerNum: playerNum,
+                opacity: 1,
+                velocityY: -2,
+                life: 120, // 2 seconds at 60fps
+                scale: 1
+            };
+            game.scorePopups.push(popup);
+        }
+
+        // Update and render score popups
+        function updateScorePopups() {
+            game.scorePopups.forEach((popup, index) => {
+                popup.life--;
+                popup.y += popup.velocityY;
+                popup.velocityY += 0.05; // Slight gravity
+                popup.opacity = popup.life / 120;
+                popup.scale = 1 + (1 - popup.opacity) * 0.5;
+
+                if (popup.life <= 0) {
+                    game.scorePopups.splice(index, 1);
+                }
+            });
+        }
+
+        // Render score popups for specific player
+        function renderScorePopups(ctx, playerNum) {
+            game.scorePopups.forEach(popup => {
+                if (popup.playerNum === playerNum) {
+                    ctx.save();
+                    ctx.globalAlpha = popup.opacity;
+                    ctx.font = `bold ${Math.floor(16 * popup.scale)}px Arial`;
+                    ctx.textAlign = 'center';
+
+                    // Color based on type
+                    switch(popup.type) {
+                        case 'collision':
+                            ctx.fillStyle = '#f44';
+                            ctx.shadowColor = '#f44';
+                            break;
+                        case 'nearMiss':
+                            ctx.fillStyle = '#ff0';
+                            ctx.shadowColor = '#ff0';
+                            break;
+                        case 'boost':
+                            ctx.fillStyle = '#0f0';
+                            ctx.shadowColor = '#0f0';
+                            break;
+                        case 'survival':
+                            ctx.fillStyle = '#0ff';
+                            ctx.shadowColor = '#0ff';
+                            break;
+                        case 'perfect':
+                            ctx.fillStyle = '#f0f';
+                            ctx.shadowColor = '#f0f';
+                            break;
+                        default:
+                            ctx.fillStyle = '#fff';
+                            ctx.shadowColor = '#fff';
+                    }
+
+                    ctx.shadowBlur = 4;
+
+                    // Format points display
+                    let text = '';
+                    if (popup.points > 0) {
+                        text = `+${Math.floor(popup.points)}`;
+                    } else {
+                        text = `${Math.floor(popup.points)}`;
+                    }
+
+                    // Add type indicators
+                    switch(popup.type) {
+                        case 'nearMiss':
+                            text += ' 🎯';
+                            break;
+                        case 'boost':
+                            text += ' ⚡';
+                            break;
+                        case 'perfect':
+                            text += ' 🔥';
+                            break;
+                        case 'survival':
+                            text += ' ✓';
+                            break;
+                    }
+
+                    ctx.fillText(text, popup.x, popup.y);
+                    ctx.shadowBlur = 0;
+                    ctx.restore();
+                }
+            });
+        }
+
+        // Update player function
+        function updatePlayer(player, upKey, downKey, leftKey, rightKey, boostIndicatorId) {
+            // Handle boost timing
+            if (player.boosting) {
+                player.boostTime--;
+                if (player.boostTime <= 0) {
+                    player.boosting = false;
+                    player.maxSpeed = 8;
+                    document.getElementById(boostIndicatorId).style.display = 'none';
+                }
+            }
+
+            // Player acceleration/deceleration
+            let targetSpeed = 0;
+            if (game.keys[upKey]) {
+                targetSpeed = player.boosting ? 15 : player.maxSpeed;
+            }
+            if (game.keys[downKey]) {
+                targetSpeed = -player.maxSpeed / 2;
+            }
+
+            // Smooth speed transitions
+            const speedDiff = targetSpeed - player.speed;
+            player.speed += speedDiff * player.acceleration;
+            player.speed *= player.friction;
+
+            // Improved steering - more responsive and natural
+            const steeringSensitivity = Math.min(1, Math.abs(player.speed) / 4);
+            const maxSteer = player.maxTurnSpeed * steeringSensitivity;
+
+            if (game.keys[leftKey]) {
+                player.turnSpeed = Math.max(player.turnSpeed - 0.4, -maxSteer);
+            } else if (game.keys[rightKey]) {
+                player.turnSpeed = Math.min(player.turnSpeed + 0.4, maxSteer);
+            } else {
+                player.turnSpeed *= 0.85;
+            }
+
+            // Apply turning with speed-based influence
+            const turnInfluence = Math.min(1, Math.abs(player.speed) / 3);
+            player.angle += (player.turnSpeed * 0.02) * turnInfluence;
+
+            // Physics-based movement with velocity
+            const forwardX = Math.sin(player.angle);
+            const forwardY = -Math.cos(player.angle);
+
+            player.velocityX += forwardX * player.speed * 0.1;
+            player.velocityY += forwardY * player.speed * 0.1;
+
+            // Apply air resistance
+            player.velocityX *= 0.95;
+            player.velocityY *= 0.95;
+
+            // Update position
+            player.x += player.velocityX;
+            player.y += player.velocityY;
+
+            // Keep player on screen with smoother boundaries
+            if (player.x < 30) {
+                player.x = 30;
+                player.velocityX = Math.max(0, player.velocityX);
+            }
+            if (player.x > canvasWidth - 30) {
+                player.x = canvasWidth - 30;
+                player.velocityX = Math.min(0, player.velocityX);
+            }
+            player.y = Math.max(50, Math.min(canvasHeight - 50, player.y));
+
+            // Update score based on speed
+            player.score += Math.floor(Math.abs(player.speed) * 0.1);
+        }
+
+        // Update game logic
+        function update() {
+            // Update both players
+            updatePlayer(game.player1, 'up', 'down', 'left', 'right', 'boostIndicator');
+            updatePlayer(game.player2, 'w', 's', 'a', 'd', 'boostIndicator2');
+
+            // Update score popups
+            updateScorePopups();
+
+            // Road movement based on average speed
+            const avgSpeed = (Math.abs(game.player1.speed) + Math.abs(game.player2.speed)) / 2;
+            game.roadOffset += avgSpeed;
+
+            // Create obstacles
+            const totalScore = game.player1.score + game.player2.score;
+            if (Math.random() < 0.01 + totalScore * 0.0001) {
+                createObstacle();
+            }
+
+            // Create boost pads
+            if (Math.random() < 0.005) {
+                createBoostPad();
+            }
+
+            // Check collisions for specific player
+            function checkCollisions(player, playerNum, boostIndicatorId) {
+                // Obstacle collisions
+                game.obstacles.forEach((obstacle, index) => {
+                    if (obstacle.player === playerNum &&
+                        player.x < obstacle.x + obstacle.width &&
+                        player.x + player.width > obstacle.x &&
+                        player.y < obstacle.y + obstacle.height &&
+                        player.y + player.height > obstacle.y) {
+
+                        // Collision response with physics
+                        player.speed *= 0.3;
+                        player.velocityX *= -0.5;
+                        player.velocityY *= -0.5;
+                        obstacle.y = canvasHeight + 50;
+                    }
+                });
+
+                // Boost pad collisions
+                game.boostPads.forEach((pad, index) => {
+                    if (pad.player === playerNum && !pad.used &&
+                        player.x < pad.x + pad.width &&
+                        player.x + player.width > pad.x &&
+                        player.y < pad.y + pad.height &&
+                        player.y + player.height > pad.y) {
+
+                        // Activate boost
+                        player.boosting = true;
+                        player.boostTime = 180;
+                        player.maxSpeed = 15;
+                        pad.used = true;
+                        player.score += 50;
+                        document.getElementById(boostIndicatorId).style.display = 'block';
+                    }
+                });
+            }
+
+            // Update obstacles
+            game.obstacles.forEach((obstacle, index) => {
+                obstacle.y += obstacle.speed + avgSpeed;
+
+                // Remove obstacles that are off screen
+                if (obstacle.y > canvasHeight + 50) {
+                    game.obstacles.splice(index, 1);
+                    // Give points to respective player
+                    if (obstacle.player === 1) {
+                        game.player1.score += 5;
+                    } else {
+                        game.player2.score += 5;
+                    }
+                }
+            });
+
+            // Update boost pads
+            game.boostPads.forEach((pad, index) => {
+                pad.y += pad.speed + avgSpeed;
+
+                // Remove boost pads that are off screen
+                if (pad.y > canvasHeight + 50) {
+                    game.boostPads.splice(index, 1);
+                }
+            });
+
+            // Check collisions for both players
+            checkCollisions(game.player1, 1, 'boostIndicator');
+            checkCollisions(game.player2, 2, 'boostIndicator2');
+
+            // Update UI
+            speedDisplay.textContent = Math.floor(Math.abs(game.player1.speed) * 10);
+            scoreDisplay.textContent = game.player1.score;
+            speedDisplay2.textContent = Math.floor(Math.abs(game.player2.speed) * 10);
+            scoreDisplay2.textContent = game.player2.score;
+        }
+
+        // Render individual player screen
+        function renderPlayer(ctx, player, playerNum, baseColor, boostColor) {
+            // Clear canvas
+            ctx.fillStyle = '#1a5d1a';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            // Draw road
+            ctx.fillStyle = '#444';
+            ctx.fillRect(50, 0, canvasWidth - 100, canvasHeight);
+
+            // Draw road lines
+            ctx.fillStyle = '#fff';
+            for (let i = 0; i < 20; i++) {
+                const y = (i * 60 + game.roadOffset % 60) - 60;
+                ctx.fillRect(canvasWidth / 2 - 2, y, 4, 30);
+            }
+
+            // Draw road edges
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(48, 0, 4, canvasHeight);
+            ctx.fillRect(canvasWidth - 52, 0, 4, canvasHeight);
+
+            // Draw boost pads for this player
+            game.boostPads.forEach(pad => {
+                if (pad.player === playerNum && !pad.used) {
+                    // Animated boost pad
+                    const pulse = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
+                    ctx.fillStyle = `rgba(255, 255, 0, ${pulse})`;
+                    ctx.fillRect(pad.x, pad.y, pad.width, pad.height);
+
+                    // Boost pad stripes
+                    ctx.fillStyle = '#ff0';
+                    for (let i = 0; i < 3; i++) {
+                        ctx.fillRect(pad.x + i * 20, pad.y + 5, 15, 20);
+                    }
+
+                    // Glow effect
+                    ctx.shadowColor = '#ff0';
+                    ctx.shadowBlur = 10;
+                    ctx.fillRect(pad.x, pad.y, pad.width, pad.height);
+                    ctx.shadowBlur = 0;
+                }
+            });
+
+            // Draw obstacles for this player
+            ctx.fillStyle = '#f44';
+            game.obstacles.forEach(obstacle => {
+                if (obstacle.player === playerNum) {
+                    ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                    // Add some detail
+                    ctx.fillStyle = '#f88';
+                    ctx.fillRect(obstacle.x + 5, obstacle.y + 5, obstacle.width - 10, obstacle.height - 10);
+                    ctx.fillStyle = '#f44';
+                }
+            });
+
+            // Draw player car
+            ctx.save();
+            ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
+            ctx.rotate(player.angle);
+
+            // Boost effects
+            if (player.boosting) {
+                ctx.shadowColor = '#ff0';
+                ctx.shadowBlur = 15;
+            }
+
+            // Car body
+            ctx.fillStyle = player.boosting ? boostColor : baseColor;
+            ctx.fillRect(-player.width / 2, -player.height / 2, player.width, player.height);
+
+            // Car details
+            ctx.fillStyle = player.boosting ? '#8f8' : (baseColor === '#44f' ? '#88f' : '#f88');
+            ctx.fillRect(-player.width / 2 + 5, -player.height / 2 + 5, player.width - 10, player.height - 10);
+
+            // Car windows
+            ctx.fillStyle = '#222';
+            ctx.fillRect(-player.width / 2 + 8, -player.height / 2 + 8, player.width - 16, 15);
+
+            // Reset shadow
+            ctx.shadowBlur = 0;
+
+            ctx.restore();
+
+            // Render score popups for this player
+            renderScorePopups(ctx, playerNum);
+        }
+
+        // Main render function
+        function render() {
+            // Render each player on their own canvas
+            renderPlayer(ctx1, game.player1, 1, '#44f', '#4f4'); // Blue car on left canvas
+            renderPlayer(ctx2, game.player2, 2, '#f44', '#f4f'); // Red car on right canvas
+        }
+
+        // Game loop
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start game
+        gameLoop();
+    </script>
+</body>
+</html>

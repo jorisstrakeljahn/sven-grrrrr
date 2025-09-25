@@ -1,0 +1,12 @@
+{
+  "routes": [
+    {
+      "route": "/",
+      "serve": "/multiplayer-racing.html"
+    }
+  ],
+  "mimeTypes": {
+    ".js": "text/javascript",
+    ".html": "text/html"
+  }
+}

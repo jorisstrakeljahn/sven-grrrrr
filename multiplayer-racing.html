@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Racing Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #222;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        #connectionStatus {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        #gameContainer {
+            position: relative;
+            display: none;
+        }
+
+        #gameCanvas {
+            border: 2px solid #fff;
+            background: #333;
+        }
+
+        #gameInfo {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 14px;
+        }
+
+        #waitingScreen, #joinScreen {
+            text-align: center;
+            padding: 40px;
+            background: rgba(0,0,0,0.8);
+            border-radius: 10px;
+            margin: 20px;
+        }
+
+        #playerNameInput {
+            padding: 10px;
+            font-size: 16px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        #joinButton {
+            background: #44f;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #joinButton:hover {
+            background: #66f;
+        }
+
+        #instructions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            font-size: 12px;
+            text-align: right;
+        }
+
+        .status-connected { color: #0f0; }
+        .status-disconnected { color: #f44; }
+        .status-waiting { color: #ff0; }
+    </style>
+</head>
+<body>
+    <div id="connectionStatus">Connecting...</div>
+
+    <div id="joinScreen">
+        <h1>🏎️ Multiplayer Racing Game</h1>
+        <p>Enter your name to join the race!</p>
+        <input type="text" id="playerNameInput" placeholder="Your name" maxlength="20">
+        <br>
+        <button id="joinButton">Join Race</button>
+        <div style="margin-top: 20px; font-size: 14px; opacity: 0.8;">
+            <p>🎮 Controls:</p>
+            <p>Player 1: Arrow Keys | Player 2: WASD</p>
+            <p>🎯 Near misses, 🔥 Streaks, ⚡ Boosts = Higher scores!</p>
+        </div>
+    </div>
+
+    <div id="waitingScreen" style="display: none;">
+        <h2>⏳ Waiting for opponent...</h2>
+        <p>Share this URL with a friend:</p>
+        <p style="background: #444; padding: 10px; border-radius: 5px; word-break: break-all;" id="gameUrl"></p>
+        <p>Players connected: <span id="playerCount">1</span>/2</p>
+    </div>
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        <div id="gameInfo">
+            <div>Player: <span id="playerName">Unknown</span></div>
+            <div>Speed: <span id="speed">0</span></div>
+            <div>Score: <span id="score">0</span></div>
+            <div>Streak: <span id="streak">0</span> 🔥</div>
+            <div>Multiplier: x<span id="multiplier">1</span></div>
+            <div id="boostIndicator" style="display: none; color: #ff0; font-weight: bold;">BOOST!</div>
+            <div id="perfectIndicator" style="display: none; color: #0f0; font-weight: bold;">PERFECT!</div>
+            <div id="leadIndicator" style="display: none; color: #ff0; font-weight: bold;">🏆 LEADING!</div>
+        </div>
+        <div id="instructions">
+            <div id="controlsText">Use ARROW KEYS</div>
+            <div>UP: Accelerate</div>
+            <div>DOWN: Brake</div>
+            <div>LEFT/RIGHT: Turn</div>
+            <div>🎯 Near misses = bonus!</div>
+            <div>🔥 Streaks = multipliers!</div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game state
+        let gameState = {
+            players: {},
+            obstacles: [],
+            boostPads: [],
+            scorePopups: []
+        };
+
+        let myPlayerId = null;
+        let myPlayerNum = null;
+        let myPlayerName = '';
+
+        // Input state
+        const keys = {
+            up: false,
+            down: false,
+            left: false,
+            right: false
+        };
+
+        // UI Elements
+        const connectionStatus = document.getElementById('connectionStatus');
+        const joinScreen = document.getElementById('joinScreen');
+        const waitingScreen = document.getElementById('waitingScreen');
+        const gameContainer = document.getElementById('gameContainer');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const joinButton = document.getElementById('joinButton');
+        const gameUrl = document.getElementById('gameUrl');
+        const playerCount = document.getElementById('playerCount');
+
+        // Set game URL
+        gameUrl.textContent = window.location.href;
+
+        // Socket event handlers
+        socket.on('connect', () => {
+            connectionStatus.innerHTML = '<span class="status-connected">🟢 Connected</span>';
+        });
+
+        socket.on('disconnect', () => {
+            connectionStatus.innerHTML = '<span class="status-disconnected">🔴 Disconnected</span>';
+        });
+
+        socket.on('playerAssigned', (data) => {
+            myPlayerId = data.playerId;
+            myPlayerNum = data.playerNum;
+
+            joinScreen.style.display = 'none';
+            waitingScreen.style.display = 'block';
+
+            // Update controls display based on player number
+            const controlsText = document.getElementById('controlsText');
+            controlsText.textContent = myPlayerNum === 1 ? 'Use ARROW KEYS' : 'Use WASD KEYS';
+
+            document.getElementById('playerName').textContent = myPlayerName;
+        });
+
+        socket.on('gameStart', () => {
+            waitingScreen.style.display = 'none';
+            gameContainer.style.display = 'block';
+            startGameLoop();
+        });
+
+        socket.on('gameState', (newGameState) => {
+            gameState = newGameState;
+            updateUI();
+        });
+
+        socket.on('gameFull', () => {
+            alert('Game is full! Try again later.');
+        });
+
+        // Join game
+        joinButton.addEventListener('click', () => {
+            myPlayerName = playerNameInput.value.trim() || 'Anonymous';
+            socket.emit('joinGame', { name: myPlayerName });
+        });
+
+        // Allow enter key to join
+        playerNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                joinButton.click();
+            }
+        });
+
+        // Input handling
+        document.addEventListener('keydown', (e) => {
+            if (myPlayerNum === 1) {
+                // Player 1: Arrow keys
+                switch(e.code) {
+                    case 'ArrowUp': keys.up = true; break;
+                    case 'ArrowDown': keys.down = true; break;
+                    case 'ArrowLeft': keys.left = true; break;
+                    case 'ArrowRight': keys.right = true; break;
+                }
+            } else if (myPlayerNum === 2) {
+                // Player 2: WASD
+                switch(e.code) {
+                    case 'KeyW': keys.up = true; break;
+                    case 'KeyS': keys.down = true; break;
+                    case 'KeyA': keys.left = true; break;
+                    case 'KeyD': keys.right = true; break;
+                }
+            }
+            sendInput();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (myPlayerNum === 1) {
+                switch(e.code) {
+                    case 'ArrowUp': keys.up = false; break;
+                    case 'ArrowDown': keys.down = false; break;
+                    case 'ArrowLeft': keys.left = false; break;
+                    case 'ArrowRight': keys.right = false; break;
+                }
+            } else if (myPlayerNum === 2) {
+                switch(e.code) {
+                    case 'KeyW': keys.up = false; break;
+                    case 'KeyS': keys.down = false; break;
+                    case 'KeyA': keys.left = false; break;
+                    case 'KeyD': keys.right = false; break;
+                }
+            }
+            sendInput();
+        });
+
+        function sendInput() {
+            if (myPlayerId) {
+                socket.emit('playerInput', keys);
+            }
+        }
+
+        function updateUI() {
+            const myPlayer = gameState.players[myPlayerId];
+            if (!myPlayer) return;
+
+            document.getElementById('speed').textContent = Math.floor(Math.abs(myPlayer.speed) * 10);
+            document.getElementById('score').textContent = Math.floor(myPlayer.score);
+            document.getElementById('streak').textContent = myPlayer.streak;
+            document.getElementById('multiplier').textContent = myPlayer.multiplier.toFixed(1);
+
+            // Show boost indicator
+            const boostIndicator = document.getElementById('boostIndicator');
+            boostIndicator.style.display = myPlayer.boosting ? 'block' : 'none';
+
+            // Show leader indicator
+            const leadIndicator = document.getElementById('leadIndicator');
+            const otherPlayers = Object.values(gameState.players).filter(p => p.id !== myPlayerId);
+            const isLeading = otherPlayers.length === 0 || myPlayer.score > Math.max(...otherPlayers.map(p => p.score));
+            leadIndicator.style.display = (isLeading && otherPlayers.length > 0) ? 'block' : 'none';
+
+            // Update player count in waiting screen
+            playerCount.textContent = Object.keys(gameState.players).length;
+        }
+
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = '#1a5d1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw road
+            ctx.fillStyle = '#444';
+            ctx.fillRect(50, 0, canvas.width - 100, canvas.height);
+
+            // Draw road lines
+            ctx.fillStyle = '#fff';
+            for (let i = 0; i < 20; i++) {
+                const y = (i * 60 + (Date.now() * 0.1) % 60) - 60;
+                ctx.fillRect(canvas.width / 2 - 2, y, 4, 30);
+            }
+
+            // Draw road edges
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(48, 0, 4, canvas.height);
+            ctx.fillRect(canvas.width - 52, 0, 4, canvas.height);
+
+            // Draw boost pads for my player
+            ctx.fillStyle = '#ff0';
+            gameState.boostPads.forEach(pad => {
+                if (pad.playerNum === myPlayerNum && !pad.used) {
+                    const pulse = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
+                    ctx.globalAlpha = pulse;
+                    ctx.fillRect(pad.x, pad.y, pad.width, pad.height);
+                    ctx.globalAlpha = 1;
+
+                    // Boost pad stripes
+                    ctx.fillStyle = '#ff0';
+                    for (let i = 0; i < 3; i++) {
+                        ctx.fillRect(pad.x + i * 20, pad.y + 5, 15, 20);
+                    }
+                }
+            });
+
+            // Draw obstacles for my player
+            gameState.obstacles.forEach(obstacle => {
+                if (obstacle.playerNum === myPlayerNum) {
+                    const myPlayer = gameState.players[myPlayerId];
+                    if (myPlayer) {
+                        const distance = Math.sqrt(
+                            Math.pow(myPlayer.x + myPlayer.width/2 - (obstacle.x + obstacle.width/2), 2) +
+                            Math.pow(myPlayer.y + myPlayer.height/2 - (obstacle.y + obstacle.height/2), 2)
+                        );
+
+                        // Color based on proximity
+                        if (distance < 60) {
+                            ctx.fillStyle = '#ff0';
+                            ctx.shadowColor = '#ff0';
+                            ctx.shadowBlur = 8;
+                        } else if (distance < 100) {
+                            ctx.fillStyle = '#fa4';
+                        } else {
+                            ctx.fillStyle = '#f44';
+                        }
+
+                        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                        ctx.fillStyle = distance < 60 ? '#fff' : '#f88';
+                        ctx.fillRect(obstacle.x + 5, obstacle.y + 5, obstacle.width - 10, obstacle.height - 10);
+                        ctx.shadowBlur = 0;
+                    }
+                }
+            });
+
+            // Draw my player
+            const myPlayer = gameState.players[myPlayerId];
+            if (myPlayer) {
+                ctx.save();
+                ctx.translate(myPlayer.x + myPlayer.width / 2, myPlayer.y + myPlayer.height / 2);
+                ctx.rotate(myPlayer.angle);
+
+                // Enhanced visual effects
+                if (myPlayer.boosting) {
+                    ctx.shadowColor = '#ff0';
+                    ctx.shadowBlur = 15;
+                } else if (myPlayer.multiplier > 3) {
+                    ctx.shadowColor = '#f0f';
+                    ctx.shadowBlur = 8;
+                } else if (myPlayer.multiplier > 2) {
+                    ctx.shadowColor = '#0ff';
+                    ctx.shadowBlur = 5;
+                }
+
+                // Car color based on state
+                let carColor = myPlayerNum === 1 ? '#44f' : '#f44';
+                if (myPlayer.boosting) {
+                    carColor = '#4f4';
+                } else if (myPlayer.streak > 10) {
+                    carColor = '#f0f';
+                } else if (myPlayer.streak > 5) {
+                    carColor = '#0ff';
+                }
+
+                ctx.fillStyle = carColor;
+                ctx.fillRect(-myPlayer.width / 2, -myPlayer.height / 2, myPlayer.width, myPlayer.height);
+
+                // Car details
+                let detailColor = '#8f8';
+                if (!myPlayer.boosting) {
+                    if (myPlayer.multiplier > 3) {
+                        detailColor = '#fff';
+                    } else if (myPlayer.multiplier > 2) {
+                        detailColor = '#ff0';
+                    } else {
+                        detailColor = myPlayerNum === 1 ? '#88f' : '#f88';
+                    }
+                }
+
+                ctx.fillStyle = detailColor;
+                ctx.fillRect(-myPlayer.width / 2 + 5, -myPlayer.height / 2 + 5, myPlayer.width - 10, myPlayer.height - 10);
+
+                // Car windows
+                ctx.fillStyle = '#222';
+                ctx.fillRect(-myPlayer.width / 2 + 8, -myPlayer.height / 2 + 8, myPlayer.width - 16, 15);
+
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            }
+        }
+
+        function startGameLoop() {
+            function gameLoop() {
+                if (gameContainer.style.display === 'block') {
+                    render();
+                    requestAnimationFrame(gameLoop);
+                }
+            }
+            gameLoop();
+        }
+
+        // Focus on name input when page loads
+        window.addEventListener('load', () => {
+            playerNameInput.focus();
+        });
+    </script>
+</body>
+</html>
