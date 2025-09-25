@@ -54,6 +54,7 @@ io.on('connection', (socket) => {
             angle: 0,
             velocityX: 0,
             velocityY: 0,
+            turnSpeed: 0,
             boosting: false,
             boostTime: 0,
             score: 0,
@@ -63,7 +64,8 @@ io.on('connection', (socket) => {
             lastObstacleTime: Date.now(),
             comboTimer: 0,
             nearMissCount: 0,
-            name: playerData.name || `Player ${playerNum}`
+            name: playerData.name || `Player ${playerNum}`,
+            input: { up: false, down: false, left: false, right: false }
         };
 
         socket.emit('playerAssigned', {
@@ -149,6 +151,11 @@ function updatePlayer(player) {
     if (!player.input) return;
 
     const input = player.input;
+
+    // Initialize turnSpeed if not exists
+    if (player.turnSpeed === undefined) {
+        player.turnSpeed = 0;
+    }
 
     // Handle boost timing
     if (player.boosting) {
