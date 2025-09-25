@@ -116,14 +116,27 @@
     <div id="gameContainer">
         <canvas id="gameCanvas" width="400" height="600"></canvas>
         <div id="gameInfo">
-            <div>Player: <span id="playerName">Unknown</span></div>
-            <div>Speed: <span id="speed">0</span></div>
-            <div>Score: <span id="score">0</span></div>
-            <div>Streak: <span id="streak">0</span> 🔥</div>
-            <div>Multiplier: x<span id="multiplier">1</span></div>
-            <div id="boostIndicator" style="display: none; color: #ff0; font-weight: bold;">BOOST!</div>
-            <div id="perfectIndicator" style="display: none; color: #0f0; font-weight: bold;">PERFECT!</div>
-            <div id="leadIndicator" style="display: none; color: #ff0; font-weight: bold;">🏆 LEADING!</div>
+            <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">📊 LEADERBOARD</div>
+
+            <div id="player1Stats" style="margin-bottom: 8px; padding: 5px; border-radius: 3px;">
+                <div style="color: #44f; font-weight: bold;">Player 1: <span id="player1Name">-</span></div>
+                <div>Score: <span id="player1Score">0</span> | Streak: <span id="player1Streak">0</span>🔥</div>
+            </div>
+
+            <div id="player2Stats" style="margin-bottom: 10px; padding: 5px; border-radius: 3px;">
+                <div style="color: #f44; font-weight: bold;">Player 2: <span id="player2Name">-</span></div>
+                <div>Score: <span id="player2Score">0</span> | Streak: <span id="player2Streak">0</span>🔥</div>
+            </div>
+
+            <div style="border-top: 1px solid #666; padding-top: 8px; margin-top: 8px;">
+                <div style="font-weight: bold;">YOU (<span id="myPlayerIndicator">-</span>):</div>
+                <div>Speed: <span id="speed">0</span></div>
+                <div>Multiplier: x<span id="multiplier">1</span></div>
+            </div>
+
+            <div id="boostIndicator" style="display: none; color: #ff0; font-weight: bold; margin-top: 5px;">⚡ BOOST!</div>
+            <div id="perfectIndicator" style="display: none; color: #0f0; font-weight: bold;">✨ PERFECT!</div>
+            <div id="leadIndicator" style="display: none; color: #ff0; font-weight: bold;">👑 LEADING!</div>
         </div>
         <div id="instructions">
             <div id="controlsText">Use ARROW KEYS</div>
@@ -267,18 +280,62 @@
         });
 
         function sendInput() {
-            if (myPlayerId) {
+            if (myPlayerId && socket.connected) {
                 socket.emit('playerInput', keys);
             }
         }
+
+        // Send input more frequently
+        setInterval(() => {
+            sendInput();
+        }, 16); // ~60 FPS input updates
 
         function updateUI() {
             const myPlayer = gameState.players[myPlayerId];
             if (!myPlayer) return;
 
+            // Get all players as array
+            const allPlayers = Object.values(gameState.players);
+            const player1 = allPlayers.find(p => p.playerNum === 1);
+            const player2 = allPlayers.find(p => p.playerNum === 2);
+
+            // Update Player 1 stats
+            if (player1) {
+                document.getElementById('player1Name').textContent = player1.name;
+                document.getElementById('player1Score').textContent = Math.floor(player1.score);
+                document.getElementById('player1Streak').textContent = player1.streak;
+
+                // Highlight if leading
+                const p1Stats = document.getElementById('player1Stats');
+                if (player2 && player1.score > player2.score) {
+                    p1Stats.style.background = 'rgba(68, 255, 68, 0.1)';
+                    p1Stats.style.border = '1px solid #4f4';
+                } else {
+                    p1Stats.style.background = 'rgba(68, 68, 255, 0.1)';
+                    p1Stats.style.border = '1px solid #44f';
+                }
+            }
+
+            // Update Player 2 stats
+            if (player2) {
+                document.getElementById('player2Name').textContent = player2.name;
+                document.getElementById('player2Score').textContent = Math.floor(player2.score);
+                document.getElementById('player2Streak').textContent = player2.streak;
+
+                // Highlight if leading
+                const p2Stats = document.getElementById('player2Stats');
+                if (player1 && player2.score > player1.score) {
+                    p2Stats.style.background = 'rgba(68, 255, 68, 0.1)';
+                    p2Stats.style.border = '1px solid #4f4';
+                } else {
+                    p2Stats.style.background = 'rgba(255, 68, 68, 0.1)';
+                    p2Stats.style.border = '1px solid #f44';
+                }
+            }
+
+            // Update personal stats
+            document.getElementById('myPlayerIndicator').textContent = `Player ${myPlayer.playerNum}`;
             document.getElementById('speed').textContent = Math.floor(Math.abs(myPlayer.speed) * 10);
-            document.getElementById('score').textContent = Math.floor(myPlayer.score);
-            document.getElementById('streak').textContent = myPlayer.streak;
             document.getElementById('multiplier').textContent = myPlayer.multiplier.toFixed(1);
 
             // Show boost indicator
