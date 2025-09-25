@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Racing Game Lobby</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+            color: white;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 90%;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(68, 68, 255, 0.5);
+        }
+
+        #connectionStatus {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+
+        /* Lobby Screen */
+        #lobbyScreen {
+            background: rgba(0,0,0,0.8);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px;
+        }
+
+        #playerSetup {
+            margin-bottom: 30px;
+        }
+
+        #playerNameInput {
+            padding: 15px;
+            font-size: 18px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            text-align: center;
+            width: 250px;
+        }
+
+        #playerNameInput::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .button {
+            background: linear-gradient(45deg, #44f, #66f);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(68, 68, 255, 0.3);
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(68, 68, 255, 0.5);
+        }
+
+        .button.secondary {
+            background: linear-gradient(45deg, #666, #888);
+            box-shadow: 0 4px 15px rgba(100, 100, 100, 0.3);
+        }
+
+        .button.secondary:hover {
+            box-shadow: 0 6px 20px rgba(100, 100, 100, 0.5);
+        }
+
+        /* Lobby List */
+        #lobbyList {
+            margin-top: 30px;
+        }
+
+        .lobby-item {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+
+        .lobby-item:hover {
+            background: rgba(255,255,255,0.15);
+            transform: scale(1.02);
+        }
+
+        .lobby-info {
+            text-align: left;
+        }
+
+        .lobby-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .lobby-players {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .lobby-status {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-waiting {
+            background: rgba(255, 255, 0, 0.3);
+            color: #ff0;
+        }
+
+        .status-full {
+            background: rgba(255, 0, 0, 0.3);
+            color: #f44;
+        }
+
+        .status-racing {
+            background: rgba(0, 255, 0, 0.3);
+            color: #4f4;
+        }
+
+        /* Create Lobby Form */
+        #createLobbyForm {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        #lobbyNameInput {
+            padding: 12px;
+            font-size: 16px;
+            margin: 10px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            width: 300px;
+        }
+
+        #lobbyNameInput::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        /* Game Screen */
+        #gameContainer {
+            display: none;
+            position: relative;
+        }
+
+        #gameCanvas {
+            border: 2px solid #fff;
+            background: #333;
+        }
+
+        #gameInfo {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 14px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        #instructions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            font-size: 12px;
+            text-align: right;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .status-connected { color: #0f0; }
+        .status-disconnected { color: #f44; }
+        .status-waiting { color: #ff0; }
+
+        /* Step-by-step flow */
+        .setup-step {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .help-text {
+            font-size: 12px;
+            opacity: 0.6;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .action-buttons .button {
+            flex: 1;
+            max-width: 200px;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+        }
+
+        .button-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .button-subtitle {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+
+        .action-create { background: linear-gradient(45deg, #4a90e2, #67b26f); }
+        .action-join { background: linear-gradient(45deg, #667eea, #764ba2); }
+        .action-quick { background: linear-gradient(45deg, #f093fb, #f5576c); }
+
+        .form-row {
+            margin: 20px 0;
+        }
+
+        .form-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .button.small {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        /* Waiting room styles */
+        .waiting-info {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .room-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #4a90e2;
+        }
+
+        .waiting-animation {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .waiting-animation .dot {
+            font-size: 20px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .waiting-animation .dot:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+
+        .waiting-animation .dot:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        .share-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .share-link {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s;
+            word-break: break-all;
+            font-family: monospace;
+        }
+
+        .share-link:hover {
+            background: rgba(255,255,255,0.15);
+        }
+
+        .copy-hint {
+            position: absolute;
+            top: -25px;
+            right: 10px;
+            font-size: 10px;
+            opacity: 0.6;
+        }
+
+        .player-status {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+            opacity: 0.6;
+            font-style: italic;
+        }
+
+        .empty-lobby {
+            text-align: center;
+            padding: 40px;
+            opacity: 0.6;
+            font-style: italic;
+        }
+
+        /* Enhanced lobby items */
+        .lobby-item {
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .lobby-item:hover {
+            background: rgba(255,255,255,0.12);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        .lobby-info h5 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+        }
+
+        .lobby-meta {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        #backButton {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,100,100,0.8);
+            border: none;
+            color: white;
+            padding: 12px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 4px 15px rgba(255,100,100,0.3);
+        }
+
+        #backButton:hover {
+            background: rgba(255,100,100,1);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255,100,100,0.5);
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div id="connectionStatus">Connecting...</div>
+    <div id="backButton" onclick="leaveGame()" style="display: none;">← Back to Lobby</div>
+
+    <div class="container">
+        <div id="lobbyScreen">
+            <h1>🏎️ Racing Lobby</h1>
+            <p style="opacity: 0.8; margin-bottom: 30px;">Join a race or create your own to compete with friends!</p>
+
+            <!-- Step-by-step flow -->
+            <div id="nameStep" class="setup-step">
+                <h3>👤 Step 1: Enter Your Name</h3>
+                <input type="text" id="playerNameInput" placeholder="Your racing name" maxlength="20">
+                <div class="help-text">This is how other players will see you</div>
+            </div>
+
+            <div id="actionStep" class="setup-step" style="display: none;">
+                <h3>🏁 Step 2: Choose Your Action</h3>
+                <div class="action-buttons">
+                    <button class="button action-create" onclick="showCreateLobby()">
+                        <div class="button-icon">➕</div>
+                        <div>Create New Race</div>
+                        <div class="button-subtitle">Start your own racing room</div>
+                    </button>
+                    <button class="button action-join" onclick="showJoinOptions()">
+                        <div class="button-icon">🔍</div>
+                        <div>Browse & Join</div>
+                        <div class="button-subtitle">Find existing races to join</div>
+                    </button>
+                    <button class="button action-quick" onclick="quickJoin()">
+                        <div class="button-icon">⚡</div>
+                        <div>Quick Race</div>
+                        <div class="button-subtitle">Auto-join or create instantly</div>
+                    </button>
+                </div>
+                <p style="font-size: 12px; opacity: 0.7; margin-top: 15px;">
+                    💡 Both players will share one keyboard using arrow keys
+                </p>
+            </div>
+
+            <div id="createLobbyForm" style="display: none;">
+                <h4>🏗️ Create Your Race Room</h4>
+                <div class="form-row">
+                    <input type="text" id="lobbyNameInput" placeholder="Race name (e.g., 'Speed Devils Championship')" maxlength="30">
+                    <div class="help-text">Choose a fun, memorable name for your race</div>
+                </div>
+                <div class="form-buttons">
+                    <button class="button" onclick="createLobby()">🚀 Create & Start Waiting</button>
+                    <button class="button secondary" onclick="cancelCreate()">← Back</button>
+                </div>
+            </div>
+
+            <div id="joinLobbySection" style="display: none;">
+                <div class="section-header">
+                    <h4>🏁 Available Race Rooms</h4>
+                    <button class="button secondary small" onclick="refreshLobbies()">🔄 Refresh</button>
+                </div>
+                <div id="lobbies">
+                    <div class="loading-spinner">🔄 Loading races...</div>
+                </div>
+                <button class="button secondary" onclick="backToActions()">← Back to Options</button>
+            </div>
+
+            <!-- Waiting room when in a lobby -->
+            <div id="waitingRoom" style="display: none;">
+                <h3>⏳ Waiting for Opponent</h3>
+                <div class="waiting-info">
+                    <div class="room-name">Room: <span id="waitingRoomName">-</span></div>
+                    <div class="waiting-animation">
+                        <div class="dot">●</div>
+                        <div class="dot">●</div>
+                        <div class="dot">●</div>
+                    </div>
+                    <div class="share-section">
+                        <p>📤 Share this link with a friend:</p>
+                        <div class="share-link" onclick="copyShareLink()">
+                            <span id="shareLink">-</span>
+                            <span class="copy-hint">Click to copy</span>
+                        </div>
+                    </div>
+                    <div class="player-status">
+                        <div>👤 Players: <span id="waitingPlayerCount">1</span>/2</div>
+                    </div>
+                </div>
+                <button class="button secondary" onclick="leaveWaitingRoom()">🚪 Leave Room</button>
+            </div>
+        </div>
+
+        <div id="gameContainer">
+            <canvas id="gameCanvas" width="400" height="600"></canvas>
+            <div id="gameInfo">
+                <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">📊 RACE: <span id="currentLobbyName">-</span></div>
+
+                <div id="gameTimer" style="text-align: center; font-size: 24px; font-weight: bold; color: #ff0; margin-bottom: 15px; padding: 10px; background: rgba(255,255,0,0.1); border-radius: 8px;">
+                    ⏱️ <span id="timeRemaining">30</span>s
+                </div>
+
+                <div id="player1Stats" style="margin-bottom: 8px; padding: 5px; border-radius: 3px;">
+                    <div style="color: #44f; font-weight: bold;">Player 1: <span id="player1Name">-</span></div>
+                    <div>Score: <span id="player1Score">0</span> | Streak: <span id="player1Streak">0</span>🔥</div>
+                </div>
+
+                <div id="player2Stats" style="margin-bottom: 10px; padding: 5px; border-radius: 3px;">
+                    <div style="color: #f44; font-weight: bold;">Player 2: <span id="player2Name">-</span></div>
+                    <div>Score: <span id="player2Score">0</span> | Streak: <span id="player2Streak">0</span>🔥</div>
+                </div>
+
+                <div style="border-top: 1px solid #666; padding-top: 8px; margin-top: 8px;">
+                    <div style="font-weight: bold;">YOU (<span id="myPlayerIndicator">-</span>):</div>
+                    <div>Speed: <span id="speed">0</span></div>
+                    <div>Multiplier: x<span id="multiplier">1</span></div>
+                </div>
+
+                <div id="boostIndicator" style="display: none; color: #ff0; font-weight: bold; margin-top: 5px;">⚡ BOOST!</div>
+                <div id="perfectIndicator" style="display: none; color: #0f0; font-weight: bold;">✨ PERFECT!</div>
+                <div id="leadIndicator" style="display: none; color: #ff0; font-weight: bold;">👑 LEADING!</div>
+            </div>
+            <div id="instructions">
+                <div id="controlsText">Both Players: ARROW KEYS</div>
+                <div>UP: Accelerate</div>
+                <div>DOWN: Brake</div>
+                <div>LEFT/RIGHT: Turn</div>
+                <div>🎯 Near misses = bonus!</div>
+                <div>🔥 Streaks = multipliers!</div>
+                <div style="font-size: 10px; opacity: 0.7; margin-top: 5px;">Share keyboard with your opponent!</div>
+            </div>
+        </div>
+
+        <!-- Winner Screen -->
+        <div id="winnerScreen" style="display: none;">
+            <div style="text-align: center; color: white; padding: 40px;">
+                <h1 style="font-size: 48px; margin-bottom: 20px;">🏁 RACE FINISHED!</h1>
+
+                <div id="winnerAnnouncement" style="font-size: 32px; font-weight: bold; margin-bottom: 30px; padding: 20px; border-radius: 15px;">
+                    <!-- Winner info will be populated here -->
+                </div>
+
+                <div id="finalResults" style="background: rgba(0,0,0,0.8); padding: 30px; border-radius: 15px; margin: 20px 0;">
+                    <h3 style="margin-bottom: 20px;">📊 Final Results:</h3>
+                    <div id="resultsTable">
+                        <!-- Results will be populated here -->
+                    </div>
+                </div>
+
+                <div style="margin-top: 40px;">
+                    <button class="button" onclick="raceAgain()" style="margin-right: 20px; font-size: 18px; padding: 20px 40px;">
+                        🔄 Race Again
+                    </button>
+                    <button class="button secondary" onclick="backToLobbyFromResults()" style="font-size: 18px; padding: 20px 40px;">
+                        🏠 Back to Lobby
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game state
+        let gameState = {
+            players: {},
+            obstacles: [],
+            boostPads: [],
+            scorePopups: []
+        };
+
+        let myPlayerId = null;
+        let myPlayerNum = null;
+        let myPlayerName = '';
+        let currentLobby = null;
+        let lobbies = {};
+
+        // Input state
+        const keys = {
+            up: false,
+            down: false,
+            left: false,
+            right: false
+        };
+
+        // UI Elements
+        const connectionStatus = document.getElementById('connectionStatus');
+        const lobbyScreen = document.getElementById('lobbyScreen');
+        const gameContainer = document.getElementById('gameContainer');
+        const playerNameInput = document.getElementById('playerNameInput');
+
+        // Socket event handlers
+        socket.on('connect', () => {
+            connectionStatus.innerHTML = '<span class="status-connected">🟢 Connected</span>';
+            refreshLobbies();
+        });
+
+        socket.on('disconnect', () => {
+            connectionStatus.innerHTML = '<span class="status-disconnected">🔴 Disconnected</span>';
+        });
+
+        socket.on('lobbiesUpdate', (lobbyData) => {
+            lobbies = lobbyData;
+            updateLobbyList();
+        });
+
+        socket.on('joinedLobby', (data) => {
+            currentLobby = data.lobbyId;
+
+            // Hide all other sections and show waiting room
+            document.getElementById('nameStep').style.display = 'none';
+            document.getElementById('actionStep').style.display = 'none';
+            document.getElementById('createLobbyForm').style.display = 'none';
+            document.getElementById('joinLobbySection').style.display = 'none';
+            document.getElementById('waitingRoom').style.display = 'block';
+
+            // Update waiting room info
+            document.getElementById('waitingRoomName').textContent = data.lobbyName;
+            document.getElementById('shareLink').textContent = window.location.href;
+            document.getElementById('currentLobbyName').textContent = data.lobbyName;
+            document.getElementById('backButton').style.display = 'block';
+
+            if (data.playerNum) {
+                myPlayerNum = data.playerNum;
+                myPlayerId = socket.id;
+
+                const controlsText = document.getElementById('controlsText');
+                controlsText.textContent = 'Use ARROW KEYS';
+
+                document.getElementById('myPlayerIndicator').textContent = `Player ${myPlayerNum}`;
+
+                showToast(`🎮 You are Player ${data.playerNum} (Arrow Keys)`);
+            }
+        });
+
+        socket.on('gameStart', () => {
+            document.getElementById('waitingRoom').style.display = 'none';
+            lobbyScreen.style.display = 'none';
+            gameContainer.style.display = 'block';
+
+            // Reset timer display
+            document.getElementById('timeRemaining').textContent = '30';
+            const timerElement = document.getElementById('gameTimer');
+            timerElement.style.color = '#4f4';
+            timerElement.style.background = 'rgba(68,255,68,0.1)';
+            timerElement.style.animation = '';
+            timerElement.style.transform = 'scale(1)';
+
+            showToast('🏁 Race starting! Good luck!');
+            startGameLoop();
+        });
+
+        socket.on('gameState', (newGameState) => {
+            gameState = newGameState;
+            updateUI();
+
+            // Update game timer
+            if (gameState.timeRemaining !== undefined && gameContainer.style.display === 'block') {
+                const timeElement = document.getElementById('timeRemaining');
+                const timerElement = document.getElementById('gameTimer');
+
+                timeElement.textContent = gameState.timeRemaining;
+
+                // Change color based on time remaining
+                if (gameState.timeRemaining <= 5) {
+                    timerElement.style.color = '#f44';
+                    timerElement.style.background = 'rgba(255,68,68,0.2)';
+                    timerElement.style.animation = 'pulse 1s infinite';
+
+                    // Add warning sound effect simulation
+                    if (gameState.timeRemaining === 3 || gameState.timeRemaining === 2 || gameState.timeRemaining === 1) {
+                        timerElement.style.transform = 'scale(1.1)';
+                        setTimeout(() => {
+                            timerElement.style.transform = 'scale(1)';
+                        }, 200);
+                    }
+                } else if (gameState.timeRemaining <= 10) {
+                    timerElement.style.color = '#ff0';
+                    timerElement.style.background = 'rgba(255,255,0,0.2)';
+                    timerElement.style.animation = '';
+                    timerElement.style.transform = 'scale(1)';
+                } else {
+                    timerElement.style.color = '#4f4';
+                    timerElement.style.background = 'rgba(68,255,68,0.1)';
+                    timerElement.style.animation = '';
+                    timerElement.style.transform = 'scale(1)';
+                }
+
+                // Show final countdown messages
+                if (gameState.timeRemaining <= 3 && gameState.timeRemaining > 0) {
+                    showToast(`⏰ ${gameState.timeRemaining}...`);
+                } else if (gameState.timeRemaining === 0) {
+                    showToast('🏁 TIME\'S UP!');
+                }
+            }
+
+            // Update waiting room player count if visible
+            if (document.getElementById('waitingRoom').style.display === 'block') {
+                const playerCount = Object.keys(newGameState.players).length;
+                document.getElementById('waitingPlayerCount').textContent = playerCount;
+
+                // Show countdown if we have 2 players
+                if (playerCount === 2) {
+                    showToast('🚗 Opponent found! Starting race...');
+                }
+            }
+        });
+
+        socket.on('lobbyFull', () => {
+            showToast('🚫 This race is full! Try another one.', 'error');
+        });
+
+        socket.on('lobbyNotFound', () => {
+            showToast('❌ Race room not found. It may have ended.', 'error');
+            resetToStart();
+        });
+
+        socket.on('gameFinished', (results) => {
+            // Hide game screen and show winner screen
+            gameContainer.style.display = 'none';
+            document.getElementById('winnerScreen').style.display = 'block';
+            document.getElementById('backButton').style.display = 'none';
+
+            // Display winner announcement
+            const winnerAnnouncement = document.getElementById('winnerAnnouncement');
+            if (results.winner) {
+                if (results.winner.playerNum === myPlayerNum) {
+                    winnerAnnouncement.innerHTML = `🏆 YOU WIN! 🏆`;
+                    winnerAnnouncement.style.background = 'linear-gradient(45deg, #4a90e2, #67b26f)';
+                } else {
+                    winnerAnnouncement.innerHTML = `🏆 ${results.winner.name} WINS! 🏆`;
+                    winnerAnnouncement.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+                }
+            } else {
+                winnerAnnouncement.innerHTML = `🤝 IT'S A TIE! 🤝`;
+                winnerAnnouncement.style.background = 'linear-gradient(45deg, #f093fb, #f5576c)';
+            }
+
+            // Display results table
+            const resultsTable = document.getElementById('resultsTable');
+            resultsTable.innerHTML = results.players.map((player, index) => {
+                const position = index + 1;
+                const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : '🥉';
+                const isMe = player.playerNum === myPlayerNum;
+
+                return `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; margin: 10px 0; background: ${isMe ? 'rgba(68, 255, 68, 0.2)' : 'rgba(255,255,255,0.1)'}; border-radius: 8px; ${isMe ? 'border: 2px solid #4f4' : ''}">
+                        <div style="font-size: 18px;">
+                            ${medal} ${player.name} ${isMe ? '(YOU)' : ''}
+                        </div>
+                        <div style="font-size: 18px; font-weight: bold;">
+                            ${player.score} points
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            showToast('🏁 Race finished! Check the results!');
+        });
+
+        socket.on('returnToLobby', () => {
+            // Only reset if we haven't already done it locally
+            if (currentLobby || gameContainer.style.display !== 'none') {
+                gameContainer.style.display = 'none';
+                document.getElementById('backButton').style.display = 'none';
+                document.getElementById('winnerScreen').style.display = 'none';
+                currentLobby = null;
+                myPlayerNum = null;
+                myPlayerId = null;
+                resetToStart();
+                showToast('👋 Returned to lobby');
+            }
+        });
+
+        function resetToStart() {
+            // Reset all sections to initial state
+            document.getElementById('nameStep').style.display = 'block';
+            document.getElementById('actionStep').style.display = 'none';
+            document.getElementById('createLobbyForm').style.display = 'none';
+            document.getElementById('joinLobbySection').style.display = 'none';
+            document.getElementById('waitingRoom').style.display = 'none';
+
+            // Show lobby screen and hide game
+            lobbyScreen.style.display = 'block';
+            gameContainer.style.display = 'none';
+            document.getElementById('backButton').style.display = 'none';
+
+            // Reset game state
+            currentLobby = null;
+            myPlayerNum = null;
+            myPlayerId = null;
+
+            // Keep the player name so they don't have to re-enter it
+            // Only clear it if they want to start completely fresh
+            if (!myPlayerName) {
+                playerNameInput.value = '';
+            } else {
+                // If they have a name, skip to action step
+                document.getElementById('nameStep').style.display = 'none';
+                document.getElementById('actionStep').style.display = 'block';
+            }
+
+            // Refresh lobby list
+            refreshLobbies();
+        }
+
+        // Step navigation
+        function validateNameAndProceed() {
+            const playerName = playerNameInput.value.trim();
+            if (playerName.length >= 2) {
+                myPlayerName = playerName;
+                document.getElementById('nameStep').style.display = 'none';
+                document.getElementById('actionStep').style.display = 'block';
+                showToast('👍 Great! Now choose what you want to do');
+            }
+        }
+
+        function showCreateLobby() {
+            document.getElementById('actionStep').style.display = 'none';
+            document.getElementById('createLobbyForm').style.display = 'block';
+            document.getElementById('lobbyNameInput').focus();
+        }
+
+        function showJoinOptions() {
+            document.getElementById('actionStep').style.display = 'none';
+            document.getElementById('joinLobbySection').style.display = 'block';
+            refreshLobbies();
+        }
+
+        function quickJoin() {
+            // Try to join any available lobby, or create one if none exist
+            const availableLobbies = Object.values(lobbies).filter(lobby =>
+                !lobby.gameStarted && Object.keys(lobby.players).length < 2
+            );
+
+            if (availableLobbies.length > 0) {
+                // Join the first available lobby
+                const lobby = availableLobbies[0];
+                socket.emit('joinLobby', { lobbyId: lobby.id, playerName: myPlayerName });
+                showToast('⚡ Joining available race...');
+            } else {
+                // Create a quick lobby
+                const quickName = `${myPlayerName}'s Quick Race`;
+                socket.emit('createLobby', { playerName: myPlayerName, lobbyName: quickName });
+                showToast('🚀 Creating quick race room...');
+            }
+        }
+
+        function cancelCreate() {
+            document.getElementById('createLobbyForm').style.display = 'none';
+            document.getElementById('actionStep').style.display = 'block';
+        }
+
+        function backToActions() {
+            document.getElementById('joinLobbySection').style.display = 'none';
+            document.getElementById('actionStep').style.display = 'block';
+        }
+
+        function createLobby() {
+            const lobbyName = document.getElementById('lobbyNameInput').value.trim();
+
+            if (!lobbyName) {
+                showToast('❌ Please enter a race name!', 'error');
+                return;
+            }
+
+            socket.emit('createLobby', { playerName: myPlayerName, lobbyName });
+            document.getElementById('createLobbyForm').style.display = 'none';
+        }
+
+        function joinLobby(lobbyId) {
+            socket.emit('joinLobby', { lobbyId, playerName: myPlayerName });
+            showToast('🏁 Joining race room...');
+        }
+
+        function leaveGame() {
+            if (currentLobby) {
+                socket.emit('leaveLobby', currentLobby);
+                // Immediately reset UI state
+                gameContainer.style.display = 'none';
+                document.getElementById('backButton').style.display = 'none';
+                currentLobby = null;
+                myPlayerNum = null;
+                myPlayerId = null;
+                resetToStart();
+                showToast('👋 Left the race room');
+            }
+        }
+
+        function leaveWaitingRoom() {
+            leaveGame();
+        }
+
+        function refreshLobbies() {
+            socket.emit('getLobbies');
+            showToast('🔄 Refreshing race list...');
+        }
+
+        function copyShareLink() {
+            const link = document.getElementById('shareLink').textContent;
+            navigator.clipboard.writeText(link).then(() => {
+                showToast('📋 Link copied to clipboard!');
+            }).catch(() => {
+                showToast('❌ Could not copy link', 'error');
+            });
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function updateLobbyList() {
+            const lobbiesContainer = document.getElementById('lobbies');
+            const lobbyArray = Object.values(lobbies);
+
+            if (lobbyArray.length === 0) {
+                lobbiesContainer.innerHTML = `
+                    <div class="empty-lobby">
+                        <p>🏁 No active races found</p>
+                        <p>Be the first to create one!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            lobbiesContainer.innerHTML = lobbyArray.map(lobby => {
+                const playerCount = Object.keys(lobby.players).length;
+                let statusClass, statusText, buttonText, buttonDisabled = false;
+
+                if (lobby.gameStarted) {
+                    statusClass = 'status-racing';
+                    statusText = '🏎️ Racing';
+                    buttonText = '👁️ Spectate';
+                } else if (playerCount >= 2) {
+                    statusClass = 'status-full';
+                    statusText = '🚫 Full';
+                    buttonText = 'Full';
+                    buttonDisabled = true;
+                } else {
+                    statusClass = 'status-waiting';
+                    statusText = '⏳ Waiting';
+                    buttonText = '🚗 Join Race';
+                }
+
+                const playerNames = Object.values(lobby.players).map(p => p.name).join(' vs ') || 'Empty room';
+                const timeAgo = Math.floor((Date.now() - lobby.createdAt) / 60000);
+
+                return `
+                    <div class="lobby-item">
+                        <div class="lobby-info">
+                            <h5>🏁 ${lobby.name}</h5>
+                            <div class="lobby-players">👥 ${playerNames} (${playerCount}/2)</div>
+                            <div style="font-size: 11px; opacity: 0.6; margin-top: 4px;">
+                                Created ${timeAgo === 0 ? 'now' : timeAgo + 'm ago'}
+                            </div>
+                        </div>
+                        <div class="lobby-meta">
+                            <span class="lobby-status ${statusClass}">${statusText}</span>
+                            <button class="button ${buttonDisabled ? 'secondary' : ''}"
+                                    onclick="joinLobby('${lobby.id}')"
+                                    ${buttonDisabled ? 'disabled' : ''}>
+                                ${buttonText}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Game input handling - both players use arrow keys
+        document.addEventListener('keydown', (e) => {
+            // Only handle input if we're in a game and not typing
+            if (currentLobby && !e.target.matches('input')) {
+                switch(e.code) {
+                    case 'ArrowUp': keys.up = true; e.preventDefault(); break;
+                    case 'ArrowDown': keys.down = true; e.preventDefault(); break;
+                    case 'ArrowLeft': keys.left = true; e.preventDefault(); break;
+                    case 'ArrowRight': keys.right = true; e.preventDefault(); break;
+                }
+                sendInput();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            // Only handle input if we're in a game and not typing
+            if (currentLobby && !e.target.matches('input')) {
+                switch(e.code) {
+                    case 'ArrowUp': keys.up = false; e.preventDefault(); break;
+                    case 'ArrowDown': keys.down = false; e.preventDefault(); break;
+                    case 'ArrowLeft': keys.left = false; e.preventDefault(); break;
+                    case 'ArrowRight': keys.right = false; e.preventDefault(); break;
+                }
+                sendInput();
+            }
+        });
+
+        function sendInput() {
+            if (myPlayerId && socket.connected && currentLobby) {
+                socket.emit('playerInput', { lobbyId: currentLobby, input: keys });
+            }
+        }
+
+        setInterval(() => {
+            sendInput();
+        }, 16);
+
+        // UI and rendering functions (same as before)
+        function updateUI() {
+            const myPlayer = gameState.players[myPlayerId];
+            if (!myPlayer) return;
+
+            const allPlayers = Object.values(gameState.players);
+            const player1 = allPlayers.find(p => p.playerNum === 1);
+            const player2 = allPlayers.find(p => p.playerNum === 2);
+
+            if (player1) {
+                document.getElementById('player1Name').textContent = player1.name;
+                document.getElementById('player1Score').textContent = Math.floor(player1.score);
+                document.getElementById('player1Streak').textContent = player1.streak;
+
+                const p1Stats = document.getElementById('player1Stats');
+                if (player2 && player1.score > player2.score) {
+                    p1Stats.style.background = 'rgba(68, 255, 68, 0.1)';
+                    p1Stats.style.border = '1px solid #4f4';
+                } else {
+                    p1Stats.style.background = 'rgba(68, 68, 255, 0.1)';
+                    p1Stats.style.border = '1px solid #44f';
+                }
+            }
+
+            if (player2) {
+                document.getElementById('player2Name').textContent = player2.name;
+                document.getElementById('player2Score').textContent = Math.floor(player2.score);
+                document.getElementById('player2Streak').textContent = player2.streak;
+
+                const p2Stats = document.getElementById('player2Stats');
+                if (player1 && player2.score > player1.score) {
+                    p2Stats.style.background = 'rgba(68, 255, 68, 0.1)';
+                    p2Stats.style.border = '1px solid #4f4';
+                } else {
+                    p2Stats.style.background = 'rgba(255, 68, 68, 0.1)';
+                    p2Stats.style.border = '1px solid #f44';
+                }
+            }
+
+            document.getElementById('speed').textContent = Math.floor(Math.abs(myPlayer.speed) * 10);
+            document.getElementById('multiplier').textContent = myPlayer.multiplier.toFixed(1);
+
+            const boostIndicator = document.getElementById('boostIndicator');
+            boostIndicator.style.display = myPlayer.boosting ? 'block' : 'none';
+
+            const leadIndicator = document.getElementById('leadIndicator');
+            const otherPlayers = Object.values(gameState.players).filter(p => p.id !== myPlayerId);
+            const isLeading = otherPlayers.length === 0 || myPlayer.score > Math.max(...otherPlayers.map(p => p.score));
+            leadIndicator.style.display = (isLeading && otherPlayers.length > 0) ? 'block' : 'none';
+        }
+
+        function render() {
+            ctx.fillStyle = '#1a5d1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#444';
+            ctx.fillRect(50, 0, canvas.width - 100, canvas.height);
+
+            ctx.fillStyle = '#fff';
+            for (let i = 0; i < 20; i++) {
+                const y = (i * 60 + (Date.now() * 0.1) % 60) - 60;
+                ctx.fillRect(canvas.width / 2 - 2, y, 4, 30);
+            }
+
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(48, 0, 4, canvas.height);
+            ctx.fillRect(canvas.width - 52, 0, 4, canvas.height);
+
+            ctx.fillStyle = '#ff0';
+            gameState.boostPads.forEach(pad => {
+                if (pad.playerNum === myPlayerNum && !pad.used) {
+                    const pulse = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
+                    ctx.globalAlpha = pulse;
+                    ctx.fillRect(pad.x, pad.y, pad.width, pad.height);
+                    ctx.globalAlpha = 1;
+
+                    ctx.fillStyle = '#ff0';
+                    for (let i = 0; i < 3; i++) {
+                        ctx.fillRect(pad.x + i * 20, pad.y + 5, 15, 20);
+                    }
+                }
+            });
+
+            gameState.obstacles.forEach(obstacle => {
+                if (obstacle.playerNum === myPlayerNum) {
+                    const myPlayer = gameState.players[myPlayerId];
+                    if (myPlayer) {
+                        const distance = Math.sqrt(
+                            Math.pow(myPlayer.x + myPlayer.width/2 - (obstacle.x + obstacle.width/2), 2) +
+                            Math.pow(myPlayer.y + myPlayer.height/2 - (obstacle.y + obstacle.height/2), 2)
+                        );
+
+                        if (distance < 60) {
+                            ctx.fillStyle = '#ff0';
+                            ctx.shadowColor = '#ff0';
+                            ctx.shadowBlur = 8;
+                        } else if (distance < 100) {
+                            ctx.fillStyle = '#fa4';
+                        } else {
+                            ctx.fillStyle = '#f44';
+                        }
+
+                        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                        ctx.fillStyle = distance < 60 ? '#fff' : '#f88';
+                        ctx.fillRect(obstacle.x + 5, obstacle.y + 5, obstacle.width - 10, obstacle.height - 10);
+                        ctx.shadowBlur = 0;
+                    }
+                }
+            });
+
+            const myPlayer = gameState.players[myPlayerId];
+            if (myPlayer) {
+                ctx.save();
+                ctx.translate(myPlayer.x + myPlayer.width / 2, myPlayer.y + myPlayer.height / 2);
+                ctx.rotate(myPlayer.angle);
+
+                if (myPlayer.boosting) {
+                    ctx.shadowColor = '#ff0';
+                    ctx.shadowBlur = 15;
+                } else if (myPlayer.multiplier > 3) {
+                    ctx.shadowColor = '#f0f';
+                    ctx.shadowBlur = 8;
+                } else if (myPlayer.multiplier > 2) {
+                    ctx.shadowColor = '#0ff';
+                    ctx.shadowBlur = 5;
+                }
+
+                let carColor = myPlayerNum === 1 ? '#44f' : '#f44';
+                if (myPlayer.boosting) {
+                    carColor = '#4f4';
+                } else if (myPlayer.streak > 10) {
+                    carColor = '#f0f';
+                } else if (myPlayer.streak > 5) {
+                    carColor = '#0ff';
+                }
+
+                ctx.fillStyle = carColor;
+                ctx.fillRect(-myPlayer.width / 2, -myPlayer.height / 2, myPlayer.width, myPlayer.height);
+
+                let detailColor = '#8f8';
+                if (!myPlayer.boosting) {
+                    if (myPlayer.multiplier > 3) {
+                        detailColor = '#fff';
+                    } else if (myPlayer.multiplier > 2) {
+                        detailColor = '#ff0';
+                    } else {
+                        detailColor = myPlayerNum === 1 ? '#88f' : '#f88';
+                    }
+                }
+
+                ctx.fillStyle = detailColor;
+                ctx.fillRect(-myPlayer.width / 2 + 5, -myPlayer.height / 2 + 5, myPlayer.width - 10, myPlayer.height - 10);
+
+                ctx.fillStyle = '#222';
+                ctx.fillRect(-myPlayer.width / 2 + 8, -myPlayer.height / 2 + 8, myPlayer.width - 16, 15);
+
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            }
+        }
+
+        function startGameLoop() {
+            function gameLoop() {
+                if (gameContainer.style.display === 'block') {
+                    render();
+                    requestAnimationFrame(gameLoop);
+                }
+            }
+            gameLoop();
+        }
+
+        // Winner screen functions
+        function raceAgain() {
+            if (currentLobby) {
+                socket.emit('restartGame', currentLobby);
+                document.getElementById('winnerScreen').style.display = 'none';
+                showToast('🔄 Starting new race...');
+            }
+        }
+
+        function backToLobbyFromResults() {
+            if (currentLobby) {
+                socket.emit('backToLobbyFromResults', currentLobby);
+                document.getElementById('winnerScreen').style.display = 'none';
+            }
+        }
+
+        // Auto-refresh lobbies every 5 seconds
+        setInterval(() => {
+            if (lobbyScreen.style.display !== 'none') {
+                refreshLobbies();
+            }
+        }, 5000);
+
+        // Focus on name input when page loads
+        window.addEventListener('load', () => {
+            playerNameInput.focus();
+        });
+
+        // Auto-advance on name input
+        playerNameInput.addEventListener('input', () => {
+            const name = playerNameInput.value.trim();
+            if (name.length >= 2) {
+                // Show a subtle indication that they can proceed
+                playerNameInput.style.borderColor = '#4a90e2';
+            } else {
+                playerNameInput.style.borderColor = '';
+            }
+        });
+
+        // Enter key shortcuts
+        playerNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                validateNameAndProceed();
+            }
+        });
+
+        document.getElementById('lobbyNameInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                createLobby();
+            }
+        });
+
+        // Escape key to go back
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                // Go back in the flow
+                if (document.getElementById('createLobbyForm').style.display === 'block') {
+                    cancelCreate();
+                } else if (document.getElementById('joinLobbySection').style.display === 'block') {
+                    backToActions();
+                } else if (document.getElementById('actionStep').style.display === 'block') {
+                    document.getElementById('actionStep').style.display = 'none';
+                    document.getElementById('nameStep').style.display = 'block';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
