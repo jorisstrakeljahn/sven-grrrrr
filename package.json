@@ -5,8 +5,7 @@
   "main": "lobby-server.js",
   "scripts": {
     "start": "node lobby-server.js",
-    "dev": "nodemon lobby-server.js",
-    "old-server": "node server.js"
+    "dev": "nodemon lobby-server.js"
   },
   "engines": {
     "node": ">=18.0.0"

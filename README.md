@@ -1,6 +1,6 @@
 # 🏎️ Multiplayer Racing Game
 
-A real-time multiplayer racing game that can be played over your local network!
+A real-time multiplayer lobby-based racing game that can be played over your local network!
 
 ## 🚀 Quick Start
 
@@ -20,9 +20,8 @@ npm start
 
 ## 🎮 How to Play
 
-### Game Modes
-- **Local Split-Screen**: Open `racing-game.html` directly in browser
-- **Network Multiplayer**: Use the server setup above
+### Game Mode
+- **Lobby-Based Multiplayer**: Create or join game lobbies through the web interface
 
 ### Controls
 - **Player 1**: Arrow Keys (↑↓←→)
@@ -84,9 +83,8 @@ sudo pfctl -e
 ## 🔧 Technical Details
 
 ### Files
-- `server.js` - Node.js WebSocket server for multiplayer
-- `multiplayer-racing.html` - Network multiplayer client
-- `racing-game.html` - Local split-screen version
+- `lobby-server.js` - Node.js WebSocket server with lobby system
+- `lobby-racing.html` - Lobby interface and game client
 - `package.json` - Dependencies and scripts
 
 ### Network Architecture
@@ -124,8 +122,8 @@ sudo pfctl -e
 ## 🎨 Customization
 
 The game is easily customizable:
-- Modify colors, speeds, and physics in `server.js`
-- Adjust visual effects in the HTML files
+- Modify colors, speeds, and physics in `lobby-server.js`
+- Adjust visual effects in `lobby-racing.html`
 - Add new power-ups or obstacles
 - Implement different game modes
 
