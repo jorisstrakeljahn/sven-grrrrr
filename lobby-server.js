@@ -314,9 +314,25 @@ class GameLobby {
         player.x = Math.max(30, Math.min(370, player.x));
         player.y = Math.max(50, Math.min(550, player.y));
 
-        // Update score
+        // Update score with visual feedback
         const speedPoints = Math.floor(Math.abs(player.speed) * 0.1);
         player.score += speedPoints * player.multiplier;
+
+        // Add speed bonus visual effects every 60 frames (~1 second)
+        if (!player.speedBonusTimer) player.speedBonusTimer = 0;
+        player.speedBonusTimer++;
+
+        if (player.speedBonusTimer >= 60 && speedPoints > 0) {
+            const bonusPoints = Math.floor(speedPoints * player.multiplier * 5); // Make it visible
+            io.to(player.id).emit('scoreEvent', {
+                playerId: player.id,
+                type: 'speed',
+                points: bonusPoints,
+                x: player.x,
+                y: player.y
+            });
+            player.speedBonusTimer = 0;
+        }
 
         // Update combo timer and streak decay
         if (player.comboTimer > 0) {
@@ -419,19 +435,39 @@ class GameLobby {
                         player.nearMissCount = 0;
                         obstacle.y = 700;
                     }
-                    // Near miss
-                    else if (distance < 80 && obstacle.y > player.y - 100 && obstacle.y < player.y + 100) {
+                    // Near miss (very generous conditions for frequent animations)
+                    else if (distance < 200 && obstacle.y > player.y - 200 && obstacle.y < player.y + 200) {
                         if (!obstacle.nearMissAwarded) {
                             const nearMissPoints = 25 * player.multiplier;
                             player.score += nearMissPoints;
                             player.nearMissCount++;
                             obstacle.nearMissAwarded = true;
 
-                            if (player.nearMissCount >= 3) {
+                            // Emit near miss event for visual effects
+                            console.log(`Near miss! Player ${player.id} scored ${nearMissPoints} points`);
+                            io.to(player.id).emit('scoreEvent', {
+                                playerId: player.id,
+                                type: 'nearMiss',
+                                points: nearMissPoints,
+                                x: player.x,
+                                y: player.y
+                            });
+
+                            if (player.nearMissCount >= 2) {
                                 const perfectPoints = 100 * player.multiplier;
                                 player.score += perfectPoints;
                                 player.nearMissCount = 0;
                                 player.perfectCount++;
+
+                                // Emit perfect event for visual effects
+                                console.log(`Perfect! Player ${player.id} scored ${perfectPoints} points`);
+                                io.to(player.id).emit('scoreEvent', {
+                                    playerId: player.id,
+                                    type: 'perfect',
+                                    points: perfectPoints,
+                                    x: player.x,
+                                    y: player.y
+                                });
                             }
                         }
                     }

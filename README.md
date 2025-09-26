@@ -6,12 +6,12 @@ A real-time multiplayer lobby-based racing game that can be played over your loc
 
 ### 1. Install Dependencies
 ```bash
-npm install
+bun install
 ```
 
 ### 2. Start the Server
 ```bash
-npm start
+bun start
 ```
 
 ### 3. Connect Players
@@ -83,13 +83,13 @@ sudo pfctl -e
 ## 🔧 Technical Details
 
 ### Files
-- `lobby-server.js` - Node.js WebSocket server with lobby system
+- `lobby-server.js` - Bun WebSocket server with lobby system
 - `lobby-racing.html` - Lobby interface and game client
 - `package.json` - Dependencies and scripts
 
 ### Network Architecture
 - Uses Socket.IO for real-time communication
-- Server runs at 60 FPS game loop
+- Bun server runs at 60 FPS game loop
 - Client renders at browser refresh rate
 - Authoritative server prevents cheating
 
@@ -104,7 +104,7 @@ sudo pfctl -e
 ## 🐛 Troubleshooting
 
 ### Can't Connect to Server
-1. Check if server is running (`npm start`)
+1. Check if server is running (`bun start`)
 2. Verify IP address is correct
 3. Make sure port 3000 isn't blocked
 4. Try `http://localhost:3000` on host machine first

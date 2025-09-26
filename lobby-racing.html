@@ -625,6 +625,9 @@
             scorePopups: []
         };
 
+        // Score popup effects
+        let scorePopups = [];
+
         let myPlayerId = null;
         let myPlayerNum = null;
         let myPlayerName = '';
@@ -828,6 +831,40 @@
             }
         });
 
+        // Handle scoring events for visual effects
+        socket.on('scoreEvent', (data) => {
+            console.log('Received scoreEvent:', data);
+            if (data.playerId === myPlayerId) {
+                console.log('Creating popup for my player!');
+                createScorePopup(data.type, data.points, data.x, data.y);
+            }
+        });
+
+        // Test function to manually trigger animations (for debugging)
+        function testScorePopups() {
+            const myPlayer = gameState.players[myPlayerId];
+            if (myPlayer) {
+                createScorePopup('nearMiss', 25, myPlayer.x, myPlayer.y);
+                setTimeout(() => {
+                    createScorePopup('perfect', 100, myPlayer.x + 50, myPlayer.y);
+                }, 1000);
+            } else {
+                // Fallback if no player - use canvas center
+                createScorePopup('nearMiss', 25, 200, 300);
+                setTimeout(() => {
+                    createScorePopup('perfect', 100, 250, 300);
+                }, 1000);
+            }
+        }
+
+        // Add keyboard shortcut to test animations (T key)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 't' || e.key === 'T') {
+                console.log('Testing score popups...');
+                testScorePopups();
+            }
+        });
+
         function resetToStart() {
             // Reset all sections to initial state
             document.getElementById('nameStep').style.display = 'block';
@@ -858,6 +895,147 @@
 
             // Refresh lobby list
             refreshLobbies();
+        }
+
+        // Score popup functions - WoW style damage numbers
+        function createScorePopup(type, points, x, y) {
+            console.log(`Creating score popup: ${type}, ${points} points at (${x}, ${y})`);
+            console.log(`Current scorePopups array length before: ${scorePopups.length}`);
+            let color, shadowColor, text, startScale, criticalHit = false;
+
+            if (type === 'nearMiss') {
+                color = '#FFFF00'; // Bright yellow like WoW
+                shadowColor = '#996600';
+                text = `${points}`;
+                startScale = 1.2;
+            } else if (type === 'perfect') {
+                color = '#FF6600'; // Orange like WoW critical hits
+                shadowColor = '#CC3300';
+                text = `${points}!`;
+                startScale = 1.8; // Bigger for critical-style hits
+                criticalHit = true;
+            } else if (type === 'speed') {
+                color = '#00DDFF'; // Light blue for speed
+                shadowColor = '#006699';
+                text = `+${points}`;
+                startScale = 1.0;
+            }
+
+            // Add some randomness to positioning like WoW
+            const offsetX = (Math.random() - 0.5) * 40;
+            const offsetY = (Math.random() - 0.5) * 20;
+
+            scorePopups.push({
+                x: x + offsetX,
+                y: y + offsetY,
+                text: text,
+                color: color,
+                shadowColor: shadowColor,
+                alpha: 1.0,
+                scale: startScale,
+                targetScale: criticalHit ? 1.0 : 0.8,
+                velocityX: (Math.random() - 0.5) * 2, // Slight drift
+                velocityY: -2 - Math.random() * 2, // Float upward with variation
+                time: Date.now(),
+                duration: criticalHit ? 3000 : 2000, // Longer for crits
+                criticalHit: criticalHit,
+                bounce: criticalHit ? 0.1 : 0 // Slight bounce for crits
+            });
+            console.log(`Current scorePopups array length after: ${scorePopups.length}`);
+        }
+
+        function updateScorePopups() {
+            const now = Date.now();
+            scorePopups = scorePopups.filter(popup => {
+                const age = now - popup.time;
+                const progress = age / popup.duration;
+
+                if (age > popup.duration) return false;
+
+                // WoW-style animation phases
+                if (progress < 0.1) {
+                    // Initial pop-in phase (0-10%)
+                    popup.scale = popup.scale * 0.98 + popup.targetScale * 0.02;
+                } else if (progress < 0.3) {
+                    // Stable display phase (10-30%)
+                    popup.scale = popup.targetScale;
+                } else {
+                    // Fade out phase (30-100%)
+                    const fadeProgress = (progress - 0.3) / 0.7;
+                    popup.alpha = Math.max(0, 1 - fadeProgress * fadeProgress); // Quadratic fade
+                    popup.scale = popup.targetScale * (1 - fadeProgress * 0.3); // Shrink slightly
+                }
+
+                // Update position with physics
+                popup.x += popup.velocityX;
+                popup.y += popup.velocityY;
+
+                // Add slight gravity and air resistance
+                popup.velocityY += 0.05; // Gravity
+                popup.velocityX *= 0.98; // Air resistance
+                popup.velocityY *= 0.98;
+
+                // Bounce effect for critical hits
+                if (popup.criticalHit && progress < 0.2) {
+                    const bouncePhase = Math.sin(progress * 50) * popup.bounce;
+                    popup.scale += bouncePhase;
+                }
+
+                return true;
+            });
+        }
+
+        function renderScorePopups() {
+            if (scorePopups.length > 0) {
+                console.log(`Rendering ${scorePopups.length} score popups`);
+            }
+            ctx.save();
+
+            scorePopups.forEach(popup => {
+                ctx.globalAlpha = popup.alpha;
+
+                // WoW-style font sizing and styling
+                const fontSize = Math.floor(20 * popup.scale);
+                ctx.font = `bold ${fontSize}px Impact, Arial Black, Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                // Enhanced glow effect for WoW feel
+                const glowIntensity = popup.criticalHit ? 12 : 6;
+                ctx.shadowColor = popup.shadowColor;
+                ctx.shadowBlur = glowIntensity;
+
+                // Multiple shadow layers for stronger glow
+                for (let i = 0; i < 3; i++) {
+                    ctx.shadowOffsetX = 0;
+                    ctx.shadowOffsetY = 0;
+                    ctx.shadowBlur = glowIntensity - i * 2;
+
+                    // Black outline (thicker for larger text)
+                    ctx.strokeStyle = '#000000';
+                    ctx.lineWidth = Math.max(2, fontSize / 8);
+                    ctx.strokeText(popup.text, popup.x, popup.y);
+                }
+
+                // Remove shadow for main text
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+
+                // Main text fill
+                ctx.fillStyle = popup.color;
+                ctx.fillText(popup.text, popup.x, popup.y);
+
+                // Add extra shine effect for critical hits
+                if (popup.criticalHit) {
+                    ctx.globalAlpha = popup.alpha * 0.7;
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.font = `bold ${Math.floor(fontSize * 0.8)}px Impact, Arial Black, Arial`;
+                    ctx.fillText(popup.text, popup.x - 1, popup.y - 1);
+                }
+            });
+
+            ctx.restore();
         }
 
         // Step navigation
@@ -1226,6 +1404,17 @@
                 ctx.shadowBlur = 0;
                 ctx.restore();
             }
+
+            // Update and render score popups
+            updateScorePopups();
+            renderScorePopups();
+
+            // Debug: Draw a simple test indicator to confirm render function is working
+            ctx.fillStyle = '#FF0000';
+            ctx.fillRect(10, 10, 20, 20);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '12px Arial';
+            ctx.fillText(`Popups: ${scorePopups.length}`, 35, 25);
         }
 
         function startGameLoop() {

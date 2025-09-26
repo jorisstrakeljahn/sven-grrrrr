@@ -5,18 +5,17 @@
   "main": "lobby-server.js",
   "scripts": {
     "start": "node lobby-server.js",
-    "dev": "nodemon lobby-server.js"
+    "dev": "bun --watch lobby-server.js",
+    "dev-bun": "bun lobby-server.js"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "bun": ">=1.0.0"
   },
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.7.5",
     "uuid": "^9.0.1"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.2"
   },
   "keywords": ["racing", "multiplayer", "game", "websockets"],
   "author": "Claude Code",
